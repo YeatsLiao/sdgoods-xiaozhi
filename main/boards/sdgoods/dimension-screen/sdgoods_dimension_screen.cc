@@ -574,7 +574,7 @@ private:
     // ---------- 下拉控制中心（1:1 照搬原厂 sdgoods_cc.c） ----------
     // 视觉语言：满屏纯黑页 + 直径 68 圆形瓷砖（#2C2C2E，按下 #3A3A3C）+ canvas 手绘
     // 白线稿图标（zoom 208）+ 下方 14 号灰 caption(#E0E0E5) + 底部灰色 home 小横条；
-    // 一级页「设置 / 关于 / 关机」，设置页「音量 / 亮度 / 数据 / 电池 / 熄屏」，
+    // 一级页「设置 / 关于 / 关机」，设置页「音量 / 亮度 / 网络 / 电池 / 熄屏」，
     // 点开进二级滑块/数据/电量/关于页（文案与几何均对齐原厂）。
     // lv_style_selector_t 是 uint32_t（part<<16 | state），直接用枚举常量组合
     static constexpr lv_style_selector_t kSel() { return LV_PART_MAIN; }
@@ -954,7 +954,7 @@ private:
         CreateCcTitle(page, "设置");
         CreateCcTile(page, 84, 130, CC_ICON_VOL, "音量", OnTileVolume);
         CreateCcTile(page, 180, 130, CC_ICON_BRI, "亮度", OnTileBrightness);
-        CreateCcTile(page, 276, 130, CC_ICON_DATA, "数据", OnTileData);
+        CreateCcTile(page, 276, 130, CC_ICON_DATA, "网络", OnTileData);
         CreateCcTile(page, 84, 230, CC_ICON_BAT, "电池", OnTileBattery);
         CreateCcTile(page, 180, 230, CC_ICON_SLEEP, "熄屏", OnTileScreenOff);
         CreateCcBottomHint(page);
@@ -1044,12 +1044,12 @@ private:
         return "WiFi " + ssid + " · " + rssi_str + "\nIP " + ip_str;
     }
 
-    // 数据页（原厂 Data 页行式，文案中文）：内存/缓存实测 + WiFi 状态 + 重新配网按钮
+    // 网络页（原厂 Data 页行式，文案中文）：内存/缓存实测 + WiFi 状态 + 重新配网按钮
     void OpenDataPage() {
         DeletePage(cc_data_page_);
         auto page = CreateCcPage();
         cc_data_page_ = page;
-        CreateCcTitle(page, "数据");
+        CreateCcTitle(page, "网络");
         // RAM/PSRAM 都由 heap_caps 实测，不写死标称值（对齐原厂「data 里的数据要真实」）
         uint32_t ram_free = (uint32_t)(heap_caps_get_free_size(MALLOC_CAP_INTERNAL) / 1024);
         uint32_t ram_total = (uint32_t)(heap_caps_get_total_size(MALLOC_CAP_INTERNAL) / 1024);
@@ -1112,8 +1112,8 @@ private:
         cc_about_page_ = page;
         CreateCcTitle(page, "关于");
         const esp_app_desc_t* d = esp_app_get_description();
-        char l1[64], l2[64], l3[64];
-        snprintf(l1, sizeof(l1), "%.20s", d->project_name[0] ? d->project_name : "?");
+        char l2[64], l3[64];
+        const char* l1 = "sdgoods-xiaozhi";   // 固定展示移植标识，不用上游 project_name "xiaozhi"
         snprintf(l2, sizeof(l2), "v%s", d->version);
         snprintf(l3, sizeof(l3), "%s %s", d->date, d->time);
         const char* lines[3] = { l1, l2, l3 };
