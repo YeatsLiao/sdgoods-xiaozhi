@@ -68,6 +68,14 @@ public:
     virtual std::string GetBoardType() = 0;
     virtual std::string GetUuid() { return uuid_; }
     virtual Backlight* GetBacklight() { return nullptr; }
+    // 调屏亮度：板级可覆写以实现“熄屏页/触摸唤醒”等特殊语义（例如 brightness=0 不等于真关背光）。
+    // 默认行为与旧版通用 MCP 工具一致：直写背光并持久化。
+    virtual void SetScreenBrightness(uint8_t brightness) {
+        auto backlight = GetBacklight();
+        if (backlight) {
+            backlight->SetBrightness(brightness, true);
+        }
+    }
     virtual Led* GetLed();
     virtual AudioCodec* GetAudioCodec() = 0;
     virtual bool GetTemperature(float& esp32temp);

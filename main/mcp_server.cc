@@ -62,10 +62,11 @@ void McpServer::AddCommonTools() {
     if (backlight) {
         AddTool("self.screen.set_brightness", "Set the brightness of the screen.",
                 PropertyList({Property("brightness", kPropertyTypeInteger, 0, 100)}),
-                [backlight](const PropertyList& properties) -> ReturnValue {
+                [&board](const PropertyList& properties) -> ReturnValue {
                     uint8_t brightness =
                         static_cast<uint8_t>(properties["brightness"].value<int>());
-                    backlight->SetBrightness(brightness, true);
+                    // 走 Board 虚函数：部分板子对 brightness=0 有特殊语义（如微亮熄屏页触摸唤醒），默认实现仍是直写背光。
+                    board.SetScreenBrightness(brightness);
                     return true;
                 });
     }
