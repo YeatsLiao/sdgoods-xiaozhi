@@ -99,7 +99,7 @@ LcdDisplay::LcdDisplay(esp_lcd_panel_io_handle_t panel_io, esp_lcd_panel_handle_
 
 SpiLcdDisplay::SpiLcdDisplay(esp_lcd_panel_io_handle_t panel_io, esp_lcd_panel_handle_t panel,
                              int width, int height, int offset_x, int offset_y, bool mirror_x,
-                             bool mirror_y, bool swap_xy)
+                             bool mirror_y, bool swap_xy, bool fullscreen_psram_buf)
     : LcdDisplay(panel_io, panel, width, height) {
     // draw white
     std::vector<uint16_t> buffer(width_, 0xFFFF);
@@ -164,21 +164,25 @@ SpiLcdDisplay::SpiLcdDisplay(esp_lcd_panel_io_handle_t panel_io, esp_lcd_panel_h
     ESP_LOGI(TAG, "Initialize LVGL port");
     lvgl_port_cfg_t port_cfg = ESP_LVGL_PORT_INIT_CONFIG();
     port_cfg.task_priority = 1;
+    port_cfg.timer_period_ms = 2;  // 与原厂 sdgoods_lvgl.c 对齐：LVGL tick 2ms（默认 5ms 动画显断）
 #if CONFIG_SOC_CPU_CORES_NUM > 1
     port_cfg.task_affinity = 1;
 #endif
     lvgl_port_init(&port_cfg);
 
     ESP_LOGI(TAG, "Adding LCD display");
-    // SPI LCD still needs an internal DMA bounce buffer for PSRAM sources.
-    // A full-frame transfer (~150KB) cannot allocate that bounce buffer, so
-    // keep a small DMA strip in internal SRAM and partial refresh.
+    // fullscreen_psram_buf（本板开启，对齐原厂 sdgoods_lvgl.c 主力方案）：
+    // 全屏尺寸 PSRAM 双缓冲 + PARTIAL 渲染——脏区一次 flush 盖整块无效区，渲染与 DMA 重叠；
+    // 而旧版 20 行单缓冲内部 SRAM 整屏重绘要 18 次同步 flush，满屏动画/滑条拖动明显卡顿。
+    // 其它板子默认 false 维持原行为不受影响。
+    const uint32_t buf_pixels = fullscreen_psram_buf ? static_cast<uint32_t>(width_ * height_)
+                                                     : static_cast<uint32_t>(width_ * 20);
     const lvgl_port_display_cfg_t display_cfg = {
         .io_handle = panel_io_,
         .panel_handle = panel_,
         .control_handle = nullptr,
-        .buffer_size = static_cast<uint32_t>(width_ * 20),
-        .double_buffer = false,
+        .buffer_size = buf_pixels,
+        .double_buffer = fullscreen_psram_buf,
         .trans_size = 0,
         .hres = static_cast<uint32_t>(width_),
         .vres = static_cast<uint32_t>(height_),
@@ -192,8 +196,8 @@ SpiLcdDisplay::SpiLcdDisplay(esp_lcd_panel_io_handle_t panel_io, esp_lcd_panel_h
         .color_format = LV_COLOR_FORMAT_RGB565,
         .flags =
             {
-                .buff_dma = 1,
-                .buff_spiram = 0,
+                .buff_dma = static_cast<unsigned>(fullscreen_psram_buf ? 0 : 1),
+                .buff_spiram = static_cast<unsigned>(fullscreen_psram_buf ? 1 : 0),
                 .sw_rotate = 0,
                 .swap_bytes = 1,
                 .full_refresh = 0,
